@@ -3,14 +3,14 @@ The goal of this project is to analyse key product metrics in a hypothetical sce
 
 The stakeholders are interested in the following metrics:
 
-# MRR (Monthly Recurring Revenue)
+**MRR (Monthly Recurring Revenue)**
 
-# Retention Rate
+**Retention Rate**
 
-# Lifetime
+**Lifetime**
 
-# ARPPU
+**ARPPU**
 
-# LTV
+**LTV**
 
 The metrics will be calculated using MySQL DBMS, followed by explanations of the results and recommendations for the Telco team.
