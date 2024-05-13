@@ -14,3 +14,6 @@ The stakeholders are interested in the following metrics:
 **LTV**
 
 The metrics will be calculated using MySQL DBMS, followed by explanations of the results and recommendations for the Telco team.
+
+Dataset was taken from Kaggle:
+https://www.kaggle.com/datasets/syedumeerr/telco-customer-churn/data
