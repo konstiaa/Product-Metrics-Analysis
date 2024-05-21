@@ -1,7 +1,8 @@
 # Product-Metrics-Analysis
-The goal of this project is to analyse key product metrics in a hypothetical scenario and come up with recommendations for the Telco team. The company provides telecommunication services and is interested in understanding the key drivers of the business’s success.
 
-The stakeholders are interested in the following metrics:
+**Introduction**
+
+  The goal of this project is to analyse key product metrics in a hypothetical scenario and come up with recommendations for the Telco team. The company provides telecommunication services and is interested in understanding the key drivers of the business's success. The stakeholders are interested in the following metrics:
 
 **MRR (Monthly Recurring Revenue)**
 
@@ -13,9 +14,152 @@ The stakeholders are interested in the following metrics:
 
 **LTV**
 
-The metrics will be calculated using MySQL DBMS, followed by explanations of the results and recommendations for the Telco team.
+The data set has the following columns: 
 
-For a detailed overview of the project, please check the R Notebook.
+**customerID: A unique identifier for each customer.**
 
-Dataset was taken from Kaggle:
-https://www.kaggle.com/datasets/syedumeerr/telco-customer-churn/data
+**tenure: The length of time (in months) a customer has been with the service, indicative of customer loyalty.**
+
+**PhoneService: Indicates whether the customer subscribes to phone service (Yes or No).**
+
+**Contract: The type of contract (Month-to-month, One year, or Two year).**
+
+**PaperlessBilling: Whether the customer uses paperless billing (Yes or No).**
+
+**PaymentMethod: The method by which customers pay their bills.**
+
+**MonthlyCharges: The amount charged to the customer each month.**
+
+**TotalCharges: The total amount charged to the customer over the course of their tenure.**
+
+**Churn: Whether the customer has left the service (Yes or No), the primary outcome variable for analyzing customer turnover.**
+
+  The metrics will be calculated using MySQL DBMS, followed by explanations of the results and recommendations for the Telco team.
+
+**Part 1: MRR**
+
+  Firstly, we will calculate the current MRR (of users that are still working with us). Gladly, we have a separate column dedicated to monthly charges, which significantly simplifies the calculation. Otherwise, we would have needed to use the ARPU * Monthly Customers to calculate MRR
+
+```{r}
+SELECT round(sum(MonthlyCharges), 2) as MRR
+  FROM churn_data
+WHERE Churn = 'No';
+```
+
+```{r echo=FALSE}
+MRR <- read.csv("MRR.csv")
+MRR
+```
+
+**Part 2: Retention Rate**
+
+  Next, it is essential analyse the retention rate. Gladly, we have a churn column, which indicates whether the customer has stopped using the service until the end of the month shown in the tenure column.
+
+```{r}
+WITH churn AS (SELECT tenure, SUM(COUNT(churn)) OVER (order by tenure) AS churn_count
+  FROM churn_data
+WHERE Churn = 'Yes'
+  GROUP BY tenure
+ORDER BY tenure),
+
+total_count as (
+  SELECT COUNT(customerID) as total
+FROM churn_data)
+
+  SELECT c.tenure, ROUND((total-churn_count)/total * 100, 2) as retention_rate
+FROM churn as c, 
+  total_count as tc
+ORDER BY 1;
+```
+
+```{r echo=FALSE}
+Retention <- read.csv("Retention.csv")
+Retention
+```
+
+  As you can see, the trend seems quite unusual at a first glance, however, we should keep in mind that Telco is a company that provides telecommunication services, which are always needed and rarely get changed. The retention rate is exceptionally high (reaching 73% for customers that have lasted until the end of their 72nd month). This can be explained by the specifics of the business model that telecommunication services have.
+
+**Part 3: Lifetime**
+
+  Now, since we have the retention it will be easy to calculate the average lifetime of a user. Lifetime is an integral of retention. The area under the retention curve can be calculated by adding all of the values (we can accomplish that because the size of a break is one month). We already have a query to get the retention rate, thus, it only needs to be slightly modified
+
+```{r}
+WITH churn AS (SELECT tenure, sum(COUNT(churn)) OVER (ORDER BY tenure) AS churn_count
+  FROM churn_data
+WHERE Churn = 'Yes'
+  GROUP BY tenure
+ORDER BY tenure),
+
+total_count AS (
+  SELECT COUNT(customerID) AS total
+FROM churn_data)
+
+SELECT sum(retention_rate) AS Lifetime
+  FROM (SELECT c.tenure, round((total-churn_count)/total, 2) AS retention_rate
+FROM churn AS c, 
+  total_count AS tc
+order by 1) AS t;
+```
+
+```{r echo=FALSE}
+Lifetime <- read.csv("Lifetime.csv")
+Lifetime
+```
+
+  As we can see, the outstanding work of the Telco team has manifested in a 57 month average lifetime.
+
+**Part 4: ARPPU**
+
+  Next, we will calculate the current ARPPU. This metric easily explains the revenue that each customer brings to the company, allowing the stakeholders to make informed decisions regarding marketing and customer attraction programs. In addition, it will come in handy later on in the analysis.
+
+```{r}
+SELECT round(avg(Monthlycharges), 2) AS ARPPU
+  FROM churn_data
+WHERE Churn = 'No';
+
+```
+
+```{r echo=FALSE}
+ARPPU <- read.csv("ARPPU.csv")
+ARPPU
+```
+**Part 5: LTV**
+
+  Since we now have two core components of the LTV metric (ARPPU * LT), we can easily calculate it.
+
+```{r}
+with churn AS (SELECT tenure, sum(COUNT(churn)) over (order by tenure) AS churn_count
+  FROM churn_data
+WHERE Churn = 'Yes'
+  GROUP BY tenure
+ORDER BY tenure),
+
+total_count AS (
+SELECT COUNT(customerID) AS total
+  FROM churn_data),
+ARPPU AS (
+SELECT round(avg(Monthlycharges), 2) AS ARPPU
+  FROM churn_data
+WHERE Churn = 'No'
+ ), 
+LT AS (
+SELECT sum(retention_rate) AS Lifetime
+  FROM (SELECT c.tenure, round((total-churn_count)/total, 2) AS retention_rate
+FROM churn AS c, 
+  total_count AS tc
+order by 1) AS t
+ )
+ 
+SELECT round(Lifetime * ARPPU,2) AS LTV
+ FROM LT, ARPPU;
+```
+
+```{r echo=FALSE}
+LTV <- read.csv("LTV.csv")
+LTV
+```
+  As we can see, the LTV is $3518. The following metric indicates a high cost efficiency of  acquiring new customers and supporting them over a prolonged period of time.
+ 
+**Conclusion**
+
+  The analysis of the key product metrics has shown that the Telco team is doing an outstanding job.  The high retention rate and LTV indicate that the company is doing an excellent job of retaining customers and generating revenue. The ARPPU is also high, indicating that the company is generating a significant amount of revenue from each customer. The Telco team should continue to focus on retaining customers and generating revenue from each customer. They should also consider ways to increase the ARPPU and LTV, such as offering additional services or products to customers.
